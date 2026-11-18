@@ -5,4 +5,5 @@ node_modules/
 .wrangler/
 work/
 outputs/
+_site/
 *.log
