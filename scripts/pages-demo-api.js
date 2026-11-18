@@ -9,16 +9,17 @@ function save(state){sessionStorage.setItem(key,JSON.stringify(state));}
 export async function pagesApi(path,body){
   if(path.startsWith(base))path='/'+path.slice(base.length);
   const state=read(),isAdmin=location.pathname.startsWith(`${base}admin`),user=isAdmin?admin:student;
-  if(path==='/auth/config')return {local:false,google:false,guestAccess:true,adminPreview:true,domains:[]};
+  if(path==='/auth/config')return {demo:true,local:false,google:false,guestAccess:true,adminPreview:true,domains:[]};
   if(['/auth/me','/auth/guest','/auth/preview-admin'].includes(path))return {user};
   if(path==='/data')return state;
   if(path==='/admin/data')return {...state,integration:{configured:false}};
   if(path==='/profile'){Object.assign(student,body);return {ok:true};}
   if(path==='/applications'){
     const event=state.events.find(e=>e.id===body.eventId);if(!event?.open||!event.positions.some(p=>p.name===body.position))throw Error('กิจกรรมนี้ไม่เปิดรับสมัคร');
-    if(state.applications.some(a=>a.event_id===event.id&&a.position===body.position))throw Error('สมัครกิจกรรมนี้แล้ว');
-    const response=validateApplicationResponses(body,event),id=crypto.randomUUID();
-    state.applications.unshift({id,user_id:student.id,event_id:event.id,position:body.position,name:body.name,email:student.email,student_id:body.studentId,phone:body.phone,status:'pending',created:new Date().toISOString().replace('T',' ').slice(0,19),response_json:JSON.stringify(response)});save(state);return {id};
+    const existing=state.applications.find(a=>a.event_id===event.id&&a.position===body.position);
+    const response=validateApplicationResponses(body,event),id=existing?.id||crypto.randomUUID();
+    const application={id,user_id:student.id,event_id:event.id,position:body.position,name:body.name,email:student.email,student_id:body.studentId,phone:body.phone,status:'pending',reason:'',created:new Date().toISOString().replace('T',' ').slice(0,19),response_json:JSON.stringify(response)};
+    if(existing)Object.assign(existing,application);else state.applications.unshift(application);save(state);return {id};
   }
   if(path==='/admin/review'){
     const a=state.applications.find(a=>a.id===body.id);if(!a)throw Error('ไม่พบใบสมัคร');
