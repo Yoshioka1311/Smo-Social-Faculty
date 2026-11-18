@@ -1,0 +1,8 @@
+node_modules/
+.local/
+.env
+.dev.vars
+.wrangler/
+work/
+outputs/
+*.log
