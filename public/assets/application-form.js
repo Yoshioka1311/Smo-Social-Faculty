@@ -1,6 +1,16 @@
 export const defaultCampQuestions = ['เหตุผลที่อยากเข้าร่วมค่าย'];
 
+export function showApplicationSuccess({dialog,content,event,escape,alreadySubmitted=false,onView}) {
+  const title=alreadySubmitted?'คุณสมัครกิจกรรมนี้แล้ว':'สมัครสำเร็จแล้ว';
+  dialog.setAttribute('aria-labelledby','applicationSuccessTitle');
+  content.innerHTML=`<section class="application-success"><div class="application-success-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg></div><h2 id="applicationSuccessTitle" tabindex="-1">${title}</h2><p>${escape(event.title)}</p><button type="button" class="button primary" id="viewSubmittedApplication">ดูใบสมัครของฉัน</button></section>`;
+  content.querySelector('#viewSubmittedApplication').addEventListener('click',()=>{dialog.close();if(onView)Promise.resolve(onView()).catch(()=>{});});
+  if(!dialog.open)dialog.showModal();
+  content.querySelector('h2').focus();dialog.scrollTop=0;
+}
+
 export function showApplicationForm({dialog, content, event, user, escape, submit, onSuccess}) {
+  dialog.removeAttribute('aria-labelledby');
   const e=escape, questions=event.campQuestions?.length?event.campQuestions:defaultCampQuestions;
   const titles=['ความยินยอม','ข้อมูลทั่วไป','คำถามเกี่ยวกับค่าย','ความสามารถพิเศษ'];
   const input=(name,label,value='',attributes='')=>`<label class="field"><span>${label} *</span><input name="${name}" value="${e(value)}" ${attributes} required></label>`;
@@ -31,7 +41,7 @@ export function showApplicationForm({dialog, content, event, user, escape, submi
   back.addEventListener('click',()=>{if(!sending){step--;renderStep();}});
   form.addEventListener('submit',async ev=>{ev.preventDefault();if(sending||!validSection(step))return;if(step<3){step++;renderStep();return;}for(let i=0;i<4;i++)if(!validSection(i))return;
     const values=Object.fromEntries(new FormData(form));sending=true;next.disabled=true;back.disabled=true;error.textContent='';
-    try{await submit({...values,eventId:event.id,pdpaConsent:form.elements.pdpaConsent.checked,voluntaryConsent:form.elements.voluntaryConsent.checked,campAnswers:questions.map((question,i)=>({question,answer:values[`campAnswer${i}`]}))});dialog.close();await onSuccess();}catch(err){error.textContent=err.message;}finally{sending=false;next.disabled=false;back.disabled=false;}
+    try{await submit({...values,eventId:event.id,pdpaConsent:form.elements.pdpaConsent.checked,voluntaryConsent:form.elements.voluntaryConsent.checked,campAnswers:questions.map((question,i)=>({question,answer:values[`campAnswer${i}`]}))});showApplicationSuccess({dialog,content,event,escape:e,onView:onSuccess});try{await onSuccess();}catch{/* The application is saved; a refresh failure must not invite resubmission. */}}catch(err){error.textContent=err.message;}finally{sending=false;next.disabled=false;back.disabled=false;}
   });
   renderStep();if(!dialog.open)dialog.showModal();
 }
