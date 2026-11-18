@@ -1,0 +1,51 @@
+name: Test and deploy
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Configure offline deployment check
+        run: node scripts/deploy-config.mjs
+        env:
+          CLOUDFLARE_DATABASE_ID: 00000000-0000-0000-0000-000000000000
+          APP_URL: https://example.test
+      - run: npm run cloudflare:check
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.CLOUDFLARE_DEPLOY_ENABLED == 'true' && vars.CLOUDFLARE_DATABASE_ID != '' && vars.APP_URL != ''
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node scripts/deploy-config.mjs
+        env:
+          CLOUDFLARE_DATABASE_ID: ${{ vars.CLOUDFLARE_DATABASE_ID }}
+          APP_URL: ${{ vars.APP_URL }}
+      - name: Apply migrations and deploy
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          preCommands: npx wrangler d1 migrations apply sh-student-club --remote
+          command: deploy

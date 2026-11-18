@@ -8,3 +8,21 @@
 .brand-mark{flex:none}.brand>div{min-width:0}.sidebar .brand strong{font-size:14px}.sidebar .brand small{font-size:9px}
 @media(max-width:600px){.calendar-event{font-size:8px;line-height:1.4;max-height:35px;height:auto;padding:3px;background:var(--tint);color:var(--pink);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}.day{min-height:94px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+
+/* Student activity application */
+.application-form{padding:24px;background:var(--bg)}
+.application-form [hidden]{display:none!important}
+.application-progress{display:grid;gap:10px;margin-bottom:20px;color:var(--muted);font-size:12px}
+.application-progress progress{width:100%;height:7px;accent-color:var(--pink)}
+.application-section{padding:24px;background:var(--paper);border:1px solid var(--line);border-top:5px solid var(--pink);border-radius:12px;margin-bottom:18px}
+.application-section h3{margin:0 0 22px;font-size:18px}
+.application-section .field>span{font-size:14px}
+.consent-card{display:flex;align-items:flex-start;gap:12px;border:1px solid var(--line);border-radius:9px;padding:18px;margin-bottom:14px;cursor:pointer}
+.consent-card input,.allergy-options input{accent-color:var(--pink);flex-shrink:0;margin-top:5px}
+.allergy-options{border:0;padding:0;margin:0 0 20px;display:flex;gap:22px}
+.allergy-options legend{margin-bottom:10px}
+.allergy-options label{display:flex;gap:8px;align-items:center;cursor:pointer}
+.application-actions{display:flex;justify-content:space-between;gap:12px}
+.application-actions .primary{margin-left:auto}
+.response-answer{padding:16px 0;border-bottom:1px solid var(--line);margin-bottom:16px;overflow-wrap:anywhere}
+@media(max-width:600px){.application-form{padding:16px}.application-section{padding:18px}.consent-card{padding:14px}}

@@ -1,4 +1,5 @@
 import {allowedEmail,normalizeEmail,passwordError,hashPassword,verifyPassword,token,digest} from './auth.js';
+import {validateApplicationResponses} from './application-responses.js';
 
 export const json=(value,status=200,headers={})=>new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store',...headers}});
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
@@ -61,6 +62,9 @@ function validateContent(type,input) {
     if(!data.positions.length||data.positions.some(p=>!p.name||!Number.isInteger(p.capacity)||p.capacity<1||p.capacity>9999))fail('ระบุตำแหน่งและจำนวนรับ 1–9999 คน');
     if(new Set(data.positions.map(p=>p.name)).size!==data.positions.length)fail('ชื่อตำแหน่งต้องไม่ซ้ำกัน');
     data.open=input.open!==false;
+    data.campQuestions=(Array.isArray(input.campQuestions)?input.campQuestions:['เหตุผลที่อยากเข้าร่วมค่าย']).map(q=>text(q,300)).filter(Boolean);
+    if(!data.campQuestions.length)data.campQuestions=['เหตุผลที่อยากเข้าร่วมค่าย'];
+    if(data.campQuestions.length>10)fail('กำหนดคำถามได้ไม่เกิน 10 ข้อ');
   }
   if(type==='documents')data.file=text(input.file,400);
   if(type==='news')data.media=(Array.isArray(input.media)?input.media:[]).map(m=>({url:text(m.url,400),type:text(m.type,80)})).filter(m=>/^\/api\/files\/[a-zA-Z0-9-]+$/.test(m.url));
@@ -204,12 +208,14 @@ export async function handleApi(request,env) {
       return json({id:loanId},201);
     }
     if(path==='/api/applications'&&method==='POST') {
+      if(user.kind!=='student')fail('สำหรับนักศึกษาเท่านั้น',403);
       const b=await request.json(),event=await one(env,"SELECT data FROM content WHERE id=? AND type='events'",b.eventId);if(!event)fail('ไม่พบกิจกรรม');
       const eventData=JSON.parse(event.data);if(!eventData.open||!eventData.positions.some(p=>p.name===b.position))fail('กิจกรรมไม่ได้เปิดรับตำแหน่งนี้');
       if(!/^\d{7,10}$/.test(text(b.studentId))||!/^\d{9,10}$/.test(text(b.phone)))fail('กรอกรหัสนักศึกษาและเบอร์โทรให้ครบ');
       if(await one(env,'SELECT id FROM applications WHERE user_id=? AND event_id=? AND position=?',user.id,b.eventId,b.position))fail('คุณสมัครตำแหน่งนี้แล้ว');
-      const applicationId=id();await run(env,'INSERT INTO applications(id,user_id,event_id,position,note) VALUES(?,?,?,?,?)',applicationId,user.id,b.eventId,text(b.position,80),text(b.note,1000));
-      await run(env,'UPDATE users SET student_id=?,phone=? WHERE id=?',text(b.studentId,10),text(b.phone,20),user.id);return json({id:applicationId},201);
+      const response=validateApplicationResponses(b,eventData);
+      const applicationId=id();await run(env,'INSERT INTO applications(id,user_id,event_id,position,note,response_json) VALUES(?,?,?,?,?,?)',applicationId,user.id,b.eventId,text(b.position,80),'',JSON.stringify(response));
+      await run(env,'UPDATE users SET name=?,student_id=?,phone=? WHERE id=?',response.name,response.studentId,response.phone,user.id);return json({id:applicationId},201);
     }
     if(path==='/api/admin/data') {
       return json({loans:await all(env,'SELECT l.*,u.name,u.email,u.phone,u.student_id,i.name AS item_name FROM loans l JOIN users u ON u.id=l.user_id JOIN inventory i ON i.id=l.item_id ORDER BY l.created DESC'),applications:await all(env,'SELECT a.*,u.name,u.email,u.phone,u.student_id FROM applications a JOIN users u ON u.id=a.user_id ORDER BY a.created DESC'),inventory:await all(env,'SELECT * FROM inventory ORDER BY name'),integration:{configured:!!(env.IG_ACCESS_TOKEN&&env.IG_USER_ID),...(await one(env,'SELECT * FROM integration_log WHERE id=1')||{})}});
